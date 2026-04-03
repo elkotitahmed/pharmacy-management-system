@@ -1,22 +1,35 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 from models import db, Item, DailyVoucher, Ledger223, Ledger118, Order111, Order112, Ledger5, Inventory, SystemConfig
 from datetime import datetime, date, timedelta
-from sqlalchemy import func, extract
+from sqlalchemy import func
 import json
+import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pharmacy.db'
+
+# ------------------- إعداد قاعدة البيانات -------------------
+if os.environ.get('VERCEL_ENV') or os.environ.get('DATABASE_URL'):
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///pharmacy.db'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pharmacy.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
+# إنشاء الجداول إذا لم تكن موجودة (مرة واحدة عند بدء التشغيل)
 with app.app_context():
     db.create_all()
+    # إعدادات افتراضية للنظام إذا لم توجد
     if SystemConfig.query.count() == 0:
         config = SystemConfig(month_start_day=26, fiscal_year_start_month=1)
         db.session.add(config)
         db.session.commit()
 
+# ------------------- دوال مساعدة -------------------
 def get_fiscal_month(target_date):
     """إرجاع السنة والشهر الحكومي بناءً على يوم 26"""
     if target_date.day >= 26:
@@ -36,6 +49,7 @@ def get_fiscal_month_range(year, month):
     end_date = date(year, month, 25)
     return start_date, end_date
 
+# ------------------- Routes -------------------
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -128,20 +142,17 @@ def review_voucher(id):
     data = request.json or {}
     voucher.reviewed = True
     voucher.reviewed_by = data.get('reviewed_by', 'الشطب')
-    # تطبيق التعديلات بالقلم الأحمر إذا وجدت
     if 'modified_items' in data:
         original_items = json.loads(voucher.items_data)
         modified = data['modified_items']
-        # تحديث الكميات حسب التعديل
         for mod in modified:
             for idx, orig in enumerate(original_items):
                 if orig['item_id'] == mod['item_id']:
                     diff = mod['new_quantity'] - orig['quantity']
                     if diff != 0:
-                        # تعديل المخزون بناءً على الفرق
                         item = Item.query.get(mod['item_id'])
                         if item:
-                            item.current_stock -= diff  # لأننا خصمنا أولاً ثم نعدل
+                            item.current_stock -= diff
                     original_items[idx]['quantity'] = mod['new_quantity']
         voucher.items_data = json.dumps(original_items)
         voucher.reviewed_modifications = json.dumps(modified)
@@ -155,7 +166,6 @@ def ledger223_page():
 
 @app.route('/api/ledger223', methods=['GET'])
 def get_ledger223():
-    # تجميع اليوميات حسب التاريخ
     daily_summary = {}
     vouchers = DailyVoucher.query.order_by(DailyVoucher.date).all()
     for v in vouchers:
@@ -170,7 +180,7 @@ def get_ledger223():
     result = [{'date': d, 'items_summary': s} for d, s in daily_summary.items()]
     return jsonify(result)
 
-# ------------------- دفتر 118 (الدفتر الكبير - العهدة) -------------------
+# ------------------- دفتر 118 -------------------
 @app.route('/ledger118')
 def ledger118_page():
     return render_template('ledger118.html')
@@ -180,9 +190,7 @@ def get_ledger118():
     items = Item.query.all()
     result = []
     for item in items:
-        # الوارد من Order112
         incoming_qty = db.session.query(func.sum(Order112.quantity_received)).filter(Order112.item_id == item.id).scalar() or 0.0
-        # المنصرف من DailyVoucher
         outgoing_qty = 0.0
         vouchers = DailyVoucher.query.all()
         for v in vouchers:
@@ -190,8 +198,7 @@ def get_ledger118():
             for it in items_data:
                 if it['item_id'] == item.id:
                     outgoing_qty += it['quantity']
-        balance = incoming_qty - outgoing_qty  # الرصيد النظري
-        # نضيف الرصيد الفعلي من item.current_stock للمقارنة
+        balance = incoming_qty - outgoing_qty
         result.append({
             'item_id': item.id,
             'item_name': item.name,
@@ -204,7 +211,7 @@ def get_ledger118():
         })
     return jsonify(result)
 
-# ------------------- إذن 111 (طلبيات للمخزن) -------------------
+# ------------------- إذن 111 -------------------
 @app.route('/order111')
 def order111_page():
     return render_template('order111.html')
@@ -245,7 +252,7 @@ def update_order111(id):
     db.session.commit()
     return jsonify({'message': 'تم التحديث'})
 
-# ------------------- دفتر 112 (طلبيات واردة) -------------------
+# ------------------- دفتر 112 -------------------
 @app.route('/order112')
 def order112_page():
     return render_template('order112.html')
@@ -254,7 +261,6 @@ def order112_page():
 def order112_api():
     if request.method == 'POST':
         data = request.json
-        # data: {order111_id, received_date, items: [{item_id, quantity_received, expiry_date, batch_no, price}]}
         received = Order112(
             order111_id=data['order111_id'],
             received_date=datetime.strptime(data['received_date'], '%Y-%m-%d').date(),
@@ -262,13 +268,11 @@ def order112_api():
             total_value=data.get('total_value', 0.0)
         )
         db.session.add(received)
-        # تحديث المخزون (وارد)
         for it in data['items']:
             item = Item.query.get(it['item_id'])
             if item:
                 item.current_stock += it['quantity_received']
         db.session.commit()
-        # تحديث حالة الإذن 111 إلى 'received'
         order111 = Order111.query.get(data['order111_id'])
         if order111:
             order111.status = 'received'
@@ -284,16 +288,14 @@ def order112_api():
             'total_value': float(r.total_value)
         } for r in received_list])
 
-# ------------------- دفتر 5 (القيم المالية) -------------------
+# ------------------- دفتر 5 -------------------
 @app.route('/ledger5')
 def ledger5_page():
     return render_template('ledger5.html')
 
 @app.route('/api/ledger5', methods=['GET'])
 def get_ledger5():
-    # الوارد المالي: قيمة الأصناف المستلمة حسب Order112
     incoming_value = db.session.query(func.sum(Order112.total_value)).scalar() or 0.0
-    # المنصرف المالي: قيمة الأصناف المنصرفة حسب اليومية (باستخدام سعر الصنف وقت الصرف - نأخذ السعر الحالي)
     outgoing_value = 0.0
     vouchers = DailyVoucher.query.all()
     for v in vouchers:
@@ -303,7 +305,6 @@ def get_ledger5():
             if item:
                 outgoing_value += it['quantity'] * item.price_per_unit
     balance = incoming_value - outgoing_value
-    # تسجيل الحركات في دفتر 5 (اختياري)
     return jsonify({
         'total_incoming_value': incoming_value,
         'total_outgoing_value': outgoing_value,
@@ -312,7 +313,6 @@ def get_ledger5():
 
 @app.route('/api/ledger5/transactions', methods=['GET'])
 def ledger5_transactions():
-    # يمكن إرجاع تفاصيل الحركات المالية من جداول Order112 و DailyVoucher
     incoming_trans = []
     orders112 = Order112.query.all()
     for o in orders112:
@@ -356,7 +356,7 @@ def get_inventory():
             'code': item.code,
             'name': item.name,
             'unit': item.unit,
-            'theoretical_stock': item.current_stock,  # الرصيد النظري من النظام
+            'theoretical_stock': item.current_stock,
             'actual_stock': None,
             'difference': None,
             'price_per_unit': float(item.price_per_unit),
@@ -366,12 +366,11 @@ def get_inventory():
 
 @app.route('/api/inventory/finalize', methods=['POST'])
 def finalize_inventory():
-    data = request.json  # list of {item_id, actual_stock}
+    data = request.json
     for d in data:
         item = Item.query.get(d['item_id'])
         if item:
             diff = d['actual_stock'] - item.current_stock
-            # تسجيل الجرد في جدول Inventory
             inv = Inventory(
                 item_id=item.id,
                 theoretical_stock=item.current_stock,
@@ -380,7 +379,6 @@ def finalize_inventory():
                 inventory_date=date.today()
             )
             db.session.add(inv)
-            # تحديث المخزون الفعلي
             item.current_stock = d['actual_stock']
     db.session.commit()
     return jsonify({'message': 'تم تحديث الجرد'})
@@ -408,7 +406,6 @@ def monthly_report():
                 val = it['quantity'] * item.price_per_unit
                 total_outgoing_value += val
                 items_sold[item.name] = items_sold.get(item.name, 0) + it['quantity']
-    # الوارد خلال نفس الفترة
     orders_in = Order112.query.filter(Order112.received_date.between(start_date, end_date)).all()
     total_incoming_value = sum(o.total_value for o in orders_in)
     return jsonify({
@@ -426,7 +423,6 @@ def inventory_movement_report():
     if not item_id:
         return jsonify({'error': 'يجب تحديد صنف'}), 400
     item = Item.query.get_or_404(item_id)
-    # حركات الوارد من Order112
     incoming_movements = []
     orders112 = Order112.query.filter(Order112.items_data.contains(f'"item_id": {item_id}')).all()
     for o in orders112:
@@ -439,7 +435,6 @@ def inventory_movement_report():
                     'quantity': it['quantity_received'],
                     'reference': f'إذن 111 رقم {o.order111_id}'
                 })
-    # حركات المنصرف من DailyVoucher
     outgoing_movements = []
     vouchers = DailyVoucher.query.all()
     for v in vouchers:
@@ -456,5 +451,12 @@ def inventory_movement_report():
     movements.sort(key=lambda x: x['date'])
     return jsonify(movements)
 
+# نقطة نهاية مؤقتة لإنشاء الجداول يدوياً (يمكن إزالتها بعد أول استخدام)
+@app.route('/create-db')
+def create_db():
+    db.create_all()
+    return "Tables created successfully!"
+
+# ------------------- تشغيل التطبيق -------------------
 if __name__ == '__main__':
     app.run(debug=True)
