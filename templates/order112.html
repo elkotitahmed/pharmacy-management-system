@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}دفتر 112 - طلبيات واردة{% endblock %}
+{% block content %}
+<h2><i class="fas fa-dolly"></i> دفتر 112 (الطلبيات الواردة من المخزن)</h2>
+<div class="card">
+    <div class="card-header">تسجيل استلام إذن</div>
+    <div class="card-body">
+        <form id="order112Form">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label>رقم إذن 111 المرتبط</label>
+                    <select id="order111Id" class="form-select" required></select>
+                </div>
+                <div class="col-md-4">
+                    <label>تاريخ الاستلام</label>
+                    <input type="date" id="receivedDate" class="form-control" required>
+                </div>
+            </div>
+            <table class="table table-bordered" id="receivedItemsTable">
+                <thead><tr><th>الصنف</th><th>الكمية المستلمة</th><th>تاريخ الصلاحية</th><th>رقم التشغيلة</th><th>سعر الشراء</th><th></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" class="btn btn-secondary" onclick="addReceivedItemRow()">إضافة صنف مستلم</button>
+            <button type="submit" class="btn btn-primary">تسجيل الاستلام</button>
+        </form>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header">الواردات المسجلة</div>
+    <div class="card-body">
+        <div id="receivedList"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadOrder111Select() {
+        $.get('/api/order111', function(orders) {
+            let html = '<option value="">اختر إذناً</option>';
+            orders.forEach(o => {
+                if(o.status !== 'received')
+                    html += `<option value="${o.id}">${o.order_number} - ${formatDate(o.date)}</option>`;
+            });
+            $('#order111Id').html(html);
+        });
+    }
+
+    function addReceivedItemRow(itemId=null, qty=null, expiry='', batch='', price=null) {
+        let opts = generateItemOptions(itemId);
+        let html = `<tr>
+            <td><select class="item-select form-select">${opts}</select></td>
+            <td><input type="number" step="0.5" class="quantity form-control" value="${qty || ''}"></td>
+            <td><input type="date" class="expiry form-control" value="${expiry}"></td>
+            <td><input type="text" class="batch form-control" value="${batch}"></td>
+            <td><input type="number" step="0.01" class="price form-control" value="${price || ''}"></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+        $('#receivedItemsTable tbody').append(html);
+    }
+
+    $('#order112Form').on('submit', function(e) {
+        e.preventDefault();
+        let order111_id = $('#order111Id').val();
+        if(!order111_id) { alert('اختر إذناً'); return; }
+        let items = [];
+        $('#receivedItemsTable tbody tr').each(function() {
+            let itemId = $(this).find('.item-select').val();
+            let qty = $(this).find('.quantity').val();
+            let expiry = $(this).find('.expiry').val();
+            let batch = $(this).find('.batch').val();
+            let price = $(this).find('.price').val();
+            if(itemId && qty) items.push({
+                item_id: parseInt(itemId),
+                quantity_received: parseFloat(qty),
+                expiry_date: expiry,
+                batch_no: batch,
+                price: parseFloat(price) || 0
+            });
+        });
+        let data = {
+            order111_id: parseInt(order111_id),
+            received_date: $('#receivedDate').val(),
+            items: items,
+            total_value: items.reduce((sum, i) => sum + (i.quantity_received * i.price), 0)
+        };
+        $.post('/api/order112', JSON.stringify(data), function(res) {
+            showMessage(res.message);
+            $('#order112Form')[0].reset();
+            $('#receivedItemsTable tbody').empty();
+            loadReceived();
+            loadOrder111Select();
+        }).fail(() => showMessage('خطأ', 'danger'));
+    });
+
+    function loadReceived() {
+        $.get('/api/order112', function(data) {
+            let html = '<table class="table"><thead><tr><th>إذن مرجع</th><th>تاريخ الاستلام</th><th>القيمة</th></tr></thead><tbody>';
+            data.forEach(r => {
+                html += `<tr><td>${r.order111_id}</td><td>${formatDate(r.received_date)}</td><td>${r.total_value}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            $('#receivedList').html(html);
+        });
+    }
+    $(document).ready(function() {
+        loadOrder111Select();
+        loadReceived();
+    });
+</script>
+{% endblock %}

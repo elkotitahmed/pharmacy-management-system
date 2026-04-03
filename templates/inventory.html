@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}الجرد الدوري{% endblock %}
+{% block content %}
+<h2><i class="fas fa-clipboard-list"></i> جرد الصيدلية</h2>
+<div class="card">
+    <div class="card-header">قائمة الأصناف للجرد</div>
+    <div class="card-body">
+        <table class="table table-bordered" id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>الكود</th><th>الصنف</th><th>الوحدة</th><th>الرصيد النظري</th><th>الرصيد الفعلي (أدخل)</th><th>الفرق</th><th>سعر الوحدة</th><th>القيمة</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button id="finalizeInventory" class="btn btn-success">تأكيد الجرد وتحديث المخزون</button>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadInventory() {
+        $.get('/api/inventory', function(data) {
+            let html = '';
+            data.forEach(item => {
+                html += `<tr data-id="${item.id}">
+                    <td>${item.code}</td>
+                    <td>${item.name}</td>
+                    <td>${item.unit}</td>
+                    <td class="theoretical">${item.theoretical_stock}</td>
+                    <td><input type="number" step="0.5" class="actual-stock form-control" value="${item.theoretical_stock}"></td>
+                    <td class="diff">0</td>
+                    <td>${item.price_per_unit}</td>
+                    <td class="total-val">${item.total_value.toFixed(2)}</td>
+                </tr>`;
+            });
+            $('#inventoryTable tbody').html(html);
+            $('.actual-stock').on('input', function() {
+                let row = $(this).closest('tr');
+                let theoretical = parseFloat(row.find('.theoretical').text());
+                let actual = parseFloat($(this).val());
+                let diff = actual - theoretical;
+                row.find('.diff').text(diff);
+                let price = parseFloat(row.find('td:eq(6)').text());
+                row.find('.total-val').text((actual * price).toFixed(2));
+            });
+        });
+    }
+
+    $('#finalizeInventory').click(function() {
+        let updates = [];
+        $('#inventoryTable tbody tr').each(function() {
+            let id = $(this).data('id');
+            let actual = $(this).find('.actual-stock').val();
+            if(actual !== undefined) updates.push({item_id: id, actual_stock: parseFloat(actual)});
+        });
+        $.ajax({
+            url: '/api/inventory/finalize',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(updates),
+            success: function(res) { showMessage(res.message); loadInventory(); },
+            error: function() { showMessage('خطأ في حفظ الجرد', 'danger'); }
+        });
+    });
+
+    $(document).ready(loadInventory);
+</script>
+{% endblock %}

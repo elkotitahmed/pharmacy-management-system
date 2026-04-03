@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}دفتر 118 - العهدة{% endblock %}
+{% block content %}
+<h2><i class="fas fa-balance-scale"></i> دفتر 118 (الدفتر الكبير - العهدة)</h2>
+<div class="card">
+    <div class="card-header">الوارد والمنصرف والرصيد</div>
+    <div class="card-body">
+        <table class="table table-bordered" id="ledger118Table">
+            <thead>
+                <tr>
+                    <th>الصنف</th><th>الوارد (كمية)</th><th>المنصرف (كمية)</th><th>الرصيد النظري</th><th>الرصيد الفعلي</th><th>سعر الوحدة</th><th>القيمة الإجمالية</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadLedger118() {
+        $.get('/api/ledger118', function(data) {
+            let html = '';
+            data.forEach(row => {
+                html += `<tr>
+                    <td>${row.item_name}</td>
+                    <td>${row.incoming}</td>
+                    <td>${row.outgoing}</td>
+                    <td>${row.theoretical_balance}</td>
+                    <td class="${row.theoretical_balance != row.actual_balance ? 'table-danger' : ''}">${row.actual_balance}</td>
+                    <td>${row.price_per_unit}</td>
+                    <td>${row.total_value.toFixed(2)}</td>
+                </tr>`;
+            });
+            $('#ledger118Table tbody').html(html);
+        });
+    }
+    $(document).ready(loadLedger118);
+</script>
+{% endblock %}

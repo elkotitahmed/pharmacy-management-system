@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}دفتر 223{% endblock %}
+{% block content %}
+<h2><i class="fas fa-book"></i> دفتر 223 (تجميع المنصرف اليومي)</h2>
+<div class="card">
+    <div class="card-header">المنصرف اليومي حسب الصنف</div>
+    <div class="card-body">
+        <div id="ledger223Content"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadLedger223() {
+        $.get('/api/ledger223', function(data) {
+            let html = '';
+            data.forEach(day => {
+                html += `<div class="card mb-3"><div class="card-header bg-light">تاريخ: ${formatDate(day.date)}</div>
+                <div class="card-body"><table class="table table-sm"><thead><tr><th>الصنف</th><th>الكمية المنصرفة</th></tr></thead><tbody>`;
+                for(let itemName in day.items_summary) {
+                    html += `<tr><td>${itemName}</td><td>${day.items_summary[itemName]}</td></tr>`;
+                }
+                html += `</tbody></table></div></div>`;
+            });
+            if(data.length === 0) html = '<div class="alert alert-info">لا توجد بيانات بعد</div>';
+            $('#ledger223Content').html(html);
+        });
+    }
+    $(document).ready(loadLedger223);
+</script>
+{% endblock %}

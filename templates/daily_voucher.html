@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}اليومية - ت ص 9{% endblock %}
+{% block content %}
+<h2><i class="fas fa-receipt"></i> اليومية (ت ص 9)</h2>
+<div class="card">
+    <div class="card-header">تسجيل تذكرة جديدة</div>
+    <div class="card-body">
+        <form id="voucherForm">
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label>رقم التذكرة</label>
+                    <input type="text" id="ticketNumber" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                    <label>التاريخ</label>
+                    <input type="date" id="date" class="form-control" value="{{ now.date() if now else '' }}" required>
+                </div>
+            </div>
+            <table class="table table-bordered" id="itemsTable">
+                <thead>
+                    <tr><th>الصنف</th><th>الكمية (شرائط)</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <button type="button" class="btn btn-secondary" onclick="addItemRow()"><i class="fas fa-plus"></i> إضافة صنف</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> حفظ التذكرة</button>
+        </form>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header">التذاكر المسجلة</div>
+    <div class="card-body">
+        <div id="vouchersList"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function addItemRow(itemId = null, qty = null) {
+        let opts = generateItemOptions(itemId);
+        let html = `<tr>
+            <td><select class="item-select form-select">${opts}</select></td>
+            <td><input type="number" step="0.5" class="quantity form-control" value="${qty || ''}"></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="$(this).closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+        $('#itemsTable tbody').append(html);
+    }
+
+    $('#voucherForm').on('submit', function(e) {
+        e.preventDefault();
+        let items = [];
+        $('#itemsTable tbody tr').each(function() {
+            let itemId = $(this).find('.item-select').val();
+            let qty = $(this).find('.quantity').val();
+            if(itemId && qty) items.push({item_id: parseInt(itemId), quantity: parseFloat(qty)});
+        });
+        if(items.length === 0) { alert('أضف صنفاً واحداً على الأقل'); return; }
+        let data = {
+            date: $('#date').val(),
+            ticket_number: $('#ticketNumber').val(),
+            items: items
+        };
+        $.post('/api/daily_voucher', JSON.stringify(data), function(res) {
+            showMessage(res.message);
+            $('#voucherForm')[0].reset();
+            $('#itemsTable tbody').empty();
+            loadVouchers();
+        }).fail(function() { showMessage('حدث خطأ', 'danger'); });
+    });
+
+    function loadVouchers() {
+        $.get('/api/daily_voucher', function(data) {
+            let html = '<table class="table table-striped"><thead><tr><th>رقم التذكرة</th><th>التاريخ</th><th>الأصناف</th><th>المراجعة</th><th></th></tr></thead><tbody>';
+            data.forEach(v => {
+                let itemsStr = '';
+                v.items.forEach(it => {
+                    let item = window.itemsList.find(i => i.id == it.item_id);
+                    itemsStr += `${item ? item.name : it.item_id}: ${it.quantity} شرائط<br>`;
+                });
+                html += `<tr>
+                    <td>${v.ticket_number}</td>
+                    <td>${formatDate(v.date)}</td>
+                    <td>${itemsStr}</td>
+                    <td>${v.reviewed ? '<span class="badge bg-success">مراجعة</span>' : '<span class="badge bg-warning">لم تراجع</span>'}</td>
+                    <td>${!v.reviewed ? `<button class="btn btn-sm btn-primary" onclick="reviewVoucher(${v.id})">مراجعة</button>` : ''}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            $('#vouchersList').html(html);
+        });
+    }
+
+    function reviewVoucher(id) {
+        // يمكن فتح نافذة تعديل بالكميات
+        let modifications = [];
+        // نسأل المستخدم عن التعديلات
+        let msg = "هل تريد تعديل أي كميات؟ أدخل التعديلات بصيغة: item_id:new_quantity مفصولة بفواصل (مثال: 1:10,2:5)";
+        let modStr = prompt(msg);
+        if(modStr) {
+            let parts = modStr.split(',');
+            parts.forEach(p => {
+                let [itemId, newQty] = p.split(':');
+                if(itemId && newQty) modifications.push({item_id: parseInt(itemId), new_quantity: parseFloat(newQty)});
+            });
+        }
+        $.ajax({
+            url: `/api/daily_voucher/${id}/review`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({modified_items: modifications, reviewed_by: 'الشطب'}),
+            success: function(res) { showMessage(res.message); loadVouchers(); },
+            error: function() { showMessage('خطأ في المراجعة', 'danger'); }
+        });
+    }
+
+    $(document).ready(function() {
+        loadVouchers();
+    });
+</script>
+{% endblock %}

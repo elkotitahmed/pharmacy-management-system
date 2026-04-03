@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}دفتر 5 - القيم المالية{% endblock %}
+{% block content %}
+<h2><i class="fas fa-money-bill"></i> دفتر 5 (القيم المالية)</h2>
+<div class="card">
+    <div class="card-header">ملخص الحركات المالية</div>
+    <div class="card-body">
+        <div id="ledger5Summary"></div>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header">تفاصيل الحركات</div>
+    <div class="card-body">
+        <div id="ledger5Details"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadLedger5() {
+        $.get('/api/ledger5', function(summary) {
+            let html = `<table class="table table-bordered">
+                <tr><th>إجمالي الوارد (قيمة)</th><td>${summary.total_incoming_value.toFixed(2)}</td></tr>
+                <tr><th>إجمالي المنصرف (قيمة)</th><td>${summary.total_outgoing_value.toFixed(2)}</td></tr>
+                <tr><th>الرصيد المالي</th><td>${summary.balance.toFixed(2)}</td></tr>
+            </table>`;
+            $('#ledger5Summary').html(html);
+        });
+        $.get('/api/ledger5/transactions', function(trans) {
+            let html = '<table class="table"><thead><tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>القيمة</th></tr></thead><tbody>';
+            trans.forEach(t => {
+                html += `<tr><td>${formatDate(t.date)}</td><td>${t.type}</td><td>${t.reference}</td><td>${t.value.toFixed(2)}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            $('#ledger5Details').html(html);
+        });
+    }
+    $(document).ready(loadLedger5);
+</script>
+{% endblock %}

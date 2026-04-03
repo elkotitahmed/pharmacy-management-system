@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}الرئيسية{% endblock %}
+{% block content %}
+<div class="jumbotron text-center">
+    <h1 class="display-4"><i class="fas fa-capsules"></i> نظام إدارة الصيدلية</h1>
+    <p class="lead">إدارة الدفاتر والجرد وفق النظام الحكومي (شهر من 26 إلى 25)</p>
+    <hr class="my-4">
+    <div class="row mt-5">
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-receipt fa-3x mb-3 text-primary"></i>
+                    <h5 class="card-title">اليومية (ت ص 9)</h5>
+                    <p class="card-text">تسجيل التذاكر اليومية، مراجعة الشطب، تجميع المنصرف.</p>
+                    <a href="{{ url_for('daily_voucher_page') }}" class="btn btn-primary">الدخول</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-balance-scale fa-3x mb-3 text-success"></i>
+                    <h5 class="card-title">دفتر العهدة 118</h5>
+                    <p class="card-text">عرض الوارد والمنصرف والرصيد لكل صنف.</p>
+                    <a href="{{ url_for('ledger118_page') }}" class="btn btn-success">الدخول</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-clipboard-list fa-3x mb-3 text-warning"></i>
+                    <h5 class="card-title">الجرد</h5>
+                    <p class="card-text">إجراء جرد دوري ومقارنة الرصيد النظري بالفعلي.</p>
+                    <a href="{{ url_for('inventory_page') }}" class="btn btn-warning">الدخول</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-money-bill fa-3x mb-3 text-info"></i>
+                    <h5 class="card-title">دفتر 5 المالي</h5>
+                    <p class="card-text">تتبع القيم المالية للوارد والمنصرف.</p>
+                    <a href="{{ url_for('ledger5_page') }}" class="btn btn-info">الدخول</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x mb-3 text-danger"></i>
+                    <h5 class="card-title">التقارير</h5>
+                    <p class="card-text">تقارير شهرية وحركة الأصناف.</p>
+                    <a href="{{ url_for('report_page') }}" class="btn btn-danger">الدخول</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

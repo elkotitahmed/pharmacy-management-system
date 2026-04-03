@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}التقارير{% endblock %}
+{% block content %}
+<h2><i class="fas fa-chart-line"></i> التقارير</h2>
+<div class="card">
+    <div class="card-header">التقرير الشهري (حكومي)</div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label>السنة</label>
+                <input type="number" id="reportYear" class="form-control" value="2026">
+            </div>
+            <div class="col-md-3">
+                <label>الشهر</label>
+                <input type="number" id="reportMonth" class="form-control" min="1" max="12" value="4">
+            </div>
+            <div class="col-md-2">
+                <button id="loadReport" class="btn btn-primary mt-4">عرض</button>
+            </div>
+        </div>
+        <div id="monthlyReportResult"></div>
+    </div>
+</div>
+<div class="card mt-4">
+    <div class="card-header">حركة صنف معين</div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label>اختر الصنف</label>
+                <select id="itemSelect" class="form-select"></select>
+            </div>
+            <div class="col-md-2">
+                <button id="loadItemMovement" class="btn btn-info mt-4">عرض الحركة</button>
+            </div>
+        </div>
+        <div id="itemMovementResult"></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    function loadItemSelect() {
+        $.get('/api/items', function(items) {
+            let html = '<option value="">اختر صنفاً</option>';
+            items.forEach(i => html += `<option value="${i.id}">${i.name}</option>`);
+            $('#itemSelect').html(html);
+        });
+    }
+
+    $('#loadReport').click(function() {
+        let year = $('#reportYear').val();
+        let month = $('#reportMonth').val();
+        $.get(`/api/report/monthly?year=${year}&month=${month}`, function(data) {
+            let html = `<h5>الفترة من ${formatDate(data.start_date)} إلى ${formatDate(data.end_date)}</h5>
+            <table class="table table-bordered">
+                <tr><th>إجمالي الوارد (قيمة)</th><td>${data.total_incoming_value.toFixed(2)}</td></tr>
+                <tr><th>إجمالي المنصرف (قيمة)</th><td>${data.total_outgoing_value.toFixed(2)}</td></tr>
+                <tr><th>صافي الحركة</th><td>${data.net_movement.toFixed(2)}</td></tr>
+            </table>
+            <h6>الأصناف المباعة:</h6><ul>`;
+            for(let name in data.items_sold) {
+                html += `<li>${name}: ${data.items_sold[name]} شرائط</li>`;
+            }
+            html += '</ul>';
+            $('#monthlyReportResult').html(html);
+        }).fail(() => $('#monthlyReportResult').html('<div class="alert alert-danger">خطأ في جلب التقرير</div>'));
+    });
+
+    $('#loadItemMovement').click(function() {
+        let itemId = $('#itemSelect').val();
+        if(!itemId) { alert('اختر صنفاً'); return; }
+        $.get(`/api/report/inventory_movement?item_id=${itemId}`, function(movements) {
+            let html = '<table class="table"><thead><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>المرجع</th></tr></thead><tbody>';
+            movements.forEach(m => {
+                html += `<tr><td>${formatDate(m.date)}</td><td>${m.type}</td><td>${m.quantity}</td><td>${m.reference}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            $('#itemMovementResult').html(html);
+        });
+    });
+
+    $(document).ready(function() {
+        loadItemSelect();
+    });
+</script>
+{% endblock %}

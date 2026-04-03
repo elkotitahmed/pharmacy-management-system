@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الصيدلية - {% block title %}الرئيسية{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-hospital"></i> نظام الصيدلية
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('daily_voucher_page') }}"><i class="fas fa-receipt"></i> اليومية</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ledger223_page') }}"><i class="fas fa-book"></i> دفتر 223</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ledger118_page') }}"><i class="fas fa-balance-scale"></i> دفتر 118</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('order111_page') }}"><i class="fas fa-truck"></i> إذن 111</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('order112_page') }}"><i class="fas fa-dolly"></i> دفتر 112</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('ledger5_page') }}"><i class="fas fa-money-bill"></i> دفتر 5</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory_page') }}"><i class="fas fa-clipboard-list"></i> الجرد</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('report_page') }}"><i class="fas fa-chart-line"></i> تقارير</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        <div id="message-area"></div>
+        {% block content %}{% endblock %}
+    </div>
+    <footer>
+        <p>نظام إدارة الصيدلية - دفاتر حكومية</p>
+    </footer>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

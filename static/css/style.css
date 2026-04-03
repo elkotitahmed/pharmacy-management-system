@@ -1,0 +1,68 @@
+body {
+    font-family: 'Tahoma', 'Segoe UI', 'Cairo', sans-serif;
+    background-color: #f4f6f9;
+    direction: rtl;
+    text-align: right;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    font-weight: bold;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.btn {
+    border-radius: 5px;
+}
+
+table {
+    font-size: 14px;
+}
+
+.table th {
+    background-color: #e9ecef;
+}
+
+.form-control, .form-select {
+    border-radius: 5px;
+}
+
+.jumbotron {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+footer {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+    color: #6c757d;
+    border-top: 1px solid #dee2e6;
+}
+
+/* تنسيقات الجرد */
+.inventory-table input.actual-stock {
+    width: 100px;
+}
+
+.badge-review {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.badge-reviewed {
+    background-color: #28a745;
+    color: #fff;
+}
